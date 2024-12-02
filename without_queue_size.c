@@ -173,7 +173,7 @@ void* thread_function(void* arg) {
     pthread_exit(NULL);
 }
 
-void populate_queue_with_input(queue_t *q) {
+void queue1_values(queue_t *q) {
     for (int i = 0; i < Arr_size; i++) {
         int input = rand() % 100;
         write_element_to_queue(q, input);
@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
     init_queue(&queue3);
     init_queue(&queue4);
 
-    populate_queue_with_input(&queue1);
+    queue1_values(&queue1);
 
 
     for (int i = 0; i < 4; i++) {
