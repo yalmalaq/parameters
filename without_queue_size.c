@@ -10,7 +10,6 @@
 #define FUNC1 1
 #define FUNC2 2
 #define FUNC3 3
-int group = 1;
 
 typedef struct {
     int thread_id;
@@ -29,6 +28,7 @@ queue_t queue1, queue2, queue3, queue4;
 pthread_mutex_t queue_mutex[4];
 int Arr_size;
 int full_count[4];
+int group = 1;
 
 void init_queue(queue_t *q, int size) {
     q->elements = (int *)malloc(size * sizeof(int));
@@ -103,54 +103,54 @@ void heavy_computation(int n) {
     }
 }
 
-void perform_stage(int stage, int thread_id) {
-    int input;
-    switch (stage) {
-        case FUNC1:
-            pthread_mutex_lock(&queue_mutex[0]);
-            input = get_element_from_queue(&queue1);
-            pthread_mutex_unlock(&queue_mutex[0]);
-            if (input == TERM_TOKEN) return;
+void stage1(int thread_id) {
+    pthread_mutex_lock(&queue_mutex[0]);
+    int input = get_element_from_queue(&queue1);
+    pthread_mutex_unlock(&queue_mutex[0]);
 
-            int fib_result = fibonacci_iterative(input % 40);
-//            unsigned long long fact_result = factorial_iterative(input % 15);
-            heavy_computation(fib_result);
-            pthread_mutex_lock(&queue_mutex[1]);
-            write_element_to_queue(&queue2, fib_result);
-            pthread_mutex_unlock(&queue_mutex[1]);
-            printf("Thread %d for Stage 1, input= %d, result= %d\n", thread_id, input, fib_result);
-            break;
+    if (input == TERM_TOKEN) return;
 
-        case FUNC2:
-            pthread_mutex_lock(&queue_mutex[1]);
-            input = get_element_from_queue(&queue2);
-            pthread_mutex_unlock(&queue_mutex[1]);
-            if (input == TERM_TOKEN) return;
+    int fib_result = fibonacci_iterative(input % 40);
+    heavy_computation(fib_result);
 
-            int fib_stage2 = fibonacci_iterative(input % 40);
-            heavy_computation(fib_stage2);
-            pthread_mutex_lock(&queue_mutex[2]);
-            write_element_to_queue(&queue3, fib_stage2);
-            pthread_mutex_unlock(&queue_mutex[2]);
-            printf("Thread %d for Stage 2, input= %d, result= %d\n", thread_id, input, fib_stage2);
-            break;
+    pthread_mutex_lock(&queue_mutex[1]);
+    write_element_to_queue(&queue2, fib_result);
+    pthread_mutex_unlock(&queue_mutex[1]);
 
-        case FUNC3:
-            pthread_mutex_lock(&queue_mutex[2]);
-            input = get_element_from_queue(&queue3);
-            pthread_mutex_unlock(&queue_mutex[2]);
-            if (input == TERM_TOKEN) return;
+    printf("Thread %d for Stage 1, input= %d, result= %d\n", thread_id, input, fib_result);
+}
 
-            unsigned long long fact_stage3 = factorial_iterative(input);
-            pthread_mutex_lock(&queue_mutex[3]);
-            write_element_to_queue(&queue4, fact_stage3);
-            pthread_mutex_unlock(&queue_mutex[3]);
-            printf("Thread %d performing Stage 3, input= %d, fact_result= %llu\n", thread_id, input, fact_stage3);
-            break;
+void stage2(int thread_id) {
+    pthread_mutex_lock(&queue_mutex[1]);
+    int input = get_element_from_queue(&queue2);
+    pthread_mutex_unlock(&queue_mutex[1]);
 
-        default:
-            printf("wrong stage %d\n", stage);
-    }
+    if (input == TERM_TOKEN) return;
+
+    int fib_result = fibonacci_iterative(input % 40);
+    heavy_computation(fib_result);
+
+    pthread_mutex_lock(&queue_mutex[2]);
+    write_element_to_queue(&queue3, fib_result);
+    pthread_mutex_unlock(&queue_mutex[2]);
+
+    printf("Thread %d for Stage 2, input= %d, result= %d\n", thread_id, input, fib_result);
+}
+
+void stage3(int thread_id) {
+    pthread_mutex_lock(&queue_mutex[2]);
+    int input = get_element_from_queue(&queue3);
+    pthread_mutex_unlock(&queue_mutex[2]);
+
+    if (input == TERM_TOKEN) return;
+
+    unsigned long long fact_result = factorial_iterative(input);
+
+    pthread_mutex_lock(&queue_mutex[3]);
+    write_element_to_queue(&queue4, fact_result);
+    pthread_mutex_unlock(&queue_mutex[3]);
+
+    printf("Thread %d performing Stage 3, input= %d, fact_result= %llu\n", thread_id, input, fact_result);
 }
 
 void* thread_function(void* arg) {
@@ -163,10 +163,22 @@ void* thread_function(void* arg) {
             pthread_mutex_lock(&queue_mutex[j]);
             input_queue_empty = empty_queue(j == 0 ? &queue1 : j == 1 ? &queue2 : &queue3);
             pthread_mutex_unlock(&queue_mutex[j]);
-            
+
             if (input_queue_empty) break;
 
-            perform_stage(config->stages[j], config->thread_id);
+            switch (config->stages[j]) {
+                case FUNC1:
+                    stage1(config->thread_id);
+                    break;
+                case FUNC2:
+                    stage2(config->thread_id);
+                    break;
+                case FUNC3:
+                    stage3(config->thread_id);
+                    break;
+                default:
+                    printf("Invalid stage %d\n", config->stages[j]);
+            }
         }
 
         if (input_queue_empty) break;
@@ -174,6 +186,7 @@ void* thread_function(void* arg) {
 
     pthread_exit(NULL);
 }
+
 
 void queue1_values(queue_t *q) {
     for (int i = 0; i < Arr_size; i++) {
