@@ -10,6 +10,7 @@
 #define FUNC1 1
 #define FUNC2 2
 #define FUNC3 3
+int group = 1;
 
 typedef struct {
     int thread_id;
@@ -28,6 +29,7 @@ queue_t queue1, queue2, queue3, queue4;
 pthread_mutex_t queue_mutex[4];
 int Arr_size;
 int full_count[4];
+
 void init_queue(queue_t *q, int size) {
     q->elements = (int *)malloc(size * sizeof(int));
     q->read_pos = -1;
@@ -84,7 +86,6 @@ int fibonacci_iterative(int n) {
 
 unsigned long long factorial_iterative(int n) {
     if (n > 20) {
-        printf("Warning: Factorial input %d is too large, limiting to 20!\n", n);
         n = 20;
     }
     if (n == 0) return 1;
@@ -111,12 +112,12 @@ void perform_stage(int stage, int thread_id) {
             pthread_mutex_unlock(&queue_mutex[0]);
             if (input == TERM_TOKEN) return;
 
-        int fib_result = fibonacci_iterative(input % 40);
+            int fib_result = fibonacci_iterative(input % 40);
             heavy_computation(fib_result);
             pthread_mutex_lock(&queue_mutex[1]);
             write_element_to_queue(&queue2, fib_result, 1);
             pthread_mutex_unlock(&queue_mutex[1]);
-            printf("Thread %d performing Stage 1, input= %d, fib_result= %d\n", thread_id, input, fib_result);
+            printf("Thread %d for Stage 1, input= %d, result= %d\n", thread_id, input, fib_result);
             break;
 
         case FUNC2:
@@ -130,7 +131,7 @@ void perform_stage(int stage, int thread_id) {
             pthread_mutex_lock(&queue_mutex[2]);
             write_element_to_queue(&queue3, fib_stage2, 2);
             pthread_mutex_unlock(&queue_mutex[2]);
-            printf("Thread %d performing Stage 2, input= %d, fib_result= %d\n", thread_id, input, fib_stage2);
+            printf("Thread %d for Stage 2, input= %d, result= %d\n", thread_id, input, fib_stage2);
             break;
 
         case FUNC3:
@@ -143,11 +144,11 @@ void perform_stage(int stage, int thread_id) {
             pthread_mutex_lock(&queue_mutex[3]);
             write_element_to_queue(&queue4, fact_stage3, 3);
             pthread_mutex_unlock(&queue_mutex[3]);
-            printf("Thread %d performing Stage 3, input= %d, fact_result= %llu\n", thread_id, input, fact_stage3);
+            printf("Thread %d for Stage 3, input= %d, result= %llu\n", thread_id, input, fact_stage3);
             break;
 
         default:
-            printf("Invalid stage %d\n", stage);
+            printf("wrong stage %d\n", stage);
     }
 }
 
@@ -180,50 +181,68 @@ void queue1_values(queue_t *q) {
     }
 }
 
+
 int main(int argc, char *argv[]) {
     if (argc < 5) {
-        fprintf(stderr, "Usage: %s <array_size> <queue2_size> <queue3_size> <queue4_size>\n", argv[0]);
+        fprintf(stderr, "Usage: %s ./app queue1_size(array_size) queue2_size queue3_size <queue4_size>\n", argv[0]);
         return 1;
     }
-    
+
     Arr_size = atoi(argv[1]);
     int queue2_size = atoi(argv[2]);
     int queue3_size = atoi(argv[3]);
     int queue4_size = atoi(argv[4]);
-    
+
     pthread_t threads[MAX_THREADS];
-    
     init_queue(&queue1, Arr_size);
     init_queue(&queue2, queue2_size);
     init_queue(&queue3, queue3_size);
     init_queue(&queue4, queue4_size);
     
     queue1_values(&queue1);
-   
+
     for (int i = 0; i < 4; i++) {
         pthread_mutex_init(&queue_mutex[i], NULL);
         full_count[i] = 0;
     }
-    
-    // Here is the configs of thread assignments (grouping:
+
     thread_config_t thread_configs[MAX_THREADS];
-    thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
-    thread_configs[1] = (thread_config_t){ 1, { FUNC2 }, 1 };
-    thread_configs[2] = (thread_config_t){ 2, { FUNC3 }, 1 };
-    
+
+    if (group == 1) {
+        // (stage1) , (stage2), (stage3)
+        thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
+        thread_configs[1] = (thread_config_t){ 1, { FUNC2 }, 1 };
+        thread_configs[2] = (thread_config_t){ 2, { FUNC3 }, 1 };
+    } else if (group == 2) {
+        // (stage1 + stage 2), (stage 3)
+        thread_configs[0] = (thread_config_t){ 0, { FUNC1, FUNC2 }, 2 };
+        thread_configs[1] = (thread_config_t){ 1, { FUNC3 }, 1 };
+        thread_configs[2] = (thread_config_t){ 2, { FUNC3 }, 1 };
+    } else if (group == 3) {
+        // (stage 1), (stage2 + stage3)
+        thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
+        thread_configs[1] = (thread_config_t){ 1, { FUNC1 }, 1 };
+        thread_configs[2] = (thread_config_t){ 2, { FUNC2, FUNC3 }, 2 };
+    } else if (group == 4) {
+        // (stage1 + stage2 + stages3)
+        thread_configs[0] = (thread_config_t){ 0, { FUNC1, FUNC2, FUNC3 }, 3 };
+        thread_configs[1] = (thread_config_t){ 1, { FUNC1, FUNC2, FUNC3 }, 3 };
+        thread_configs[2] = (thread_config_t){ 2, { FUNC1, FUNC2, FUNC3 }, 3 };
+    }
+
     clock_t start = clock();
     for (int i = 0; i < MAX_THREADS; i++) {
         pthread_create(&threads[i], NULL, thread_function, (void *)&thread_configs[i]);
     }
-    
+
     for (int i = 0; i < MAX_THREADS; i++) {
         pthread_join(threads[i], NULL);
     }
-    
+
     clock_t end = clock();
     double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
-    
-pthread_mutex_lock(&queue_mutex[3]);
+
+    pthread_mutex_lock(&queue_mutex[3]);
     while (!empty_queue(&queue4)) {
         unsigned long long value = get_element_from_queue(&queue4);
         if (value != TERM_TOKEN) {
@@ -231,20 +250,22 @@ pthread_mutex_lock(&queue_mutex[3]);
         }
     }
     pthread_mutex_unlock(&queue_mutex[3]);
-    
+
     for (int i = 0; i < 4; i++) {
         pthread_mutex_destroy(&queue_mutex[i]);
     }
-    
+
     free_queue(&queue1);
     free_queue(&queue2);
     free_queue(&queue3);
     free_queue(&queue4);
-printf("\nNumber of threads: %d\n", MAX_THREADS);
-printf("Array size: %d\n", Arr_size);
-printf("Queue 2 size: %d\n", queue2.size);
-printf("Queue 3 size: %d\n", queue3.size);
+
+    printf("\nNumber of threads: %d\n", MAX_THREADS);
+    printf("Array size: %d\n", Arr_size);
+    printf("Queue 2 size: %d\n", queue2.size);
+    printf("Queue 3 size: %d\n", queue3.size);
     printf("Queue 4 size: %d\n", queue4.size);
+    printf("group: %d\n", group);
     printf("Thread assignments:\n");
 
     for (int i = 0; i < MAX_THREADS; i++) {
