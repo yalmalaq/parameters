@@ -1,0 +1,85 @@
+Power: 8.445824000000005
+Energy: 135.7322563993226
+Time: 16.07093119621277
+samples 625
+Power Energy Time
+8.445824000000005 135.7322563993226 16.07093119621277
+Average frequency of cpu0: 1500000.00 kHz
+Average frequency of cpu1: 1500000.00 kHz
+Average frequency of cpu2: 1500000.00 kHz
+Average frequency of cpu3: 1500000.00 kHz
+Average frequency of cpu4: 1937500.00 kHz
+Average frequency of cpu5: 1937500.00 kHz
+Average frequency of cpu6: 1937500.00 kHz
+Average frequency of cpu7: 1937500.00 kHz
+All frequencies used by cpu0: [1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000]
+All frequencies used by cpu1: [1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000]
+All frequencies used by cpu2: [1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000]
+All frequencies used by cpu3: [1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000, 1500000]
+All frequencies used by cpu4: [2000000, 2000000, 2000000, 2000000, 2000000, 1900000, 1800000, 1800000, 1900000, 1900000, 1900000, 1900000, 1900000, 2000000, 2000000, 2000000]
+All frequencies used by cpu5: [2000000, 2000000, 2000000, 2000000, 2000000, 1900000, 1800000, 1800000, 1900000, 1900000, 1900000, 1900000, 1900000, 2000000, 2000000, 2000000]
+All frequencies used by cpu6: [2000000, 2000000, 2000000, 2000000, 2000000, 1900000, 1800000, 1800000, 1900000, 1900000, 1900000, 1900000, 1900000, 2000000, 2000000, 2000000]
+All frequencies used by cpu7: [2000000, 2000000, 2000000, 2000000, 2000000, 1900000, 1800000, 1800000, 1900000, 1900000, 1900000, 1900000, 1900000, 2000000, 2000000, 2000000]
+Perf output: 
+Thread 0 for Stage 1, input= 83, result= 2
+Thread 1 for Stage 2, input= 2, result= 1
+Thread 2 for Stage 3, input= 1, result= 1
+Thread 0 for Stage 1, input= 86, result= 8
+Thread 1 for Stage 2, input= 8, result= 21
+Thread 2 for Stage 3, input= 21, result= 2432902008176640000
+Thread 0 for Stage 1, input= 77, result= 24157817
+Thread 0 for Stage 1, input= 15, result= 610
+Thread 0 for Stage 1, input= 93, result= 233
+Thread 1 for Stage 2, input= 24157817, result= 1597
+Thread 2 for Stage 3, input= 1597, result= 2432902008176640000
+Thread 1 for Stage 2, input= 610, result= 55
+Thread 2 for Stage 3, input= 55, result= 2432902008176640000
+Thread 1 for Stage 2, input= 233, result= 3524578
+Thread 2 for Stage 3, input= 3524578, result= 2432902008176640000
+Thread 0 for Stage 1, input= 35, result= 9227465
+Thread 0 for Stage 1, input= 86, result= 8
+Thread 0 for Stage 1, input= 92, result= 144
+Thread 0 for Stage 1, input= 49, result= 34
+Thread 0 for Stage 1, input= 21, result= 10946
+Thread 1 for Stage 2, input= 9227465, result= 75025
+Final result from Queue 4: 1
+Final result from Queue 4: 18446744071607418880
+Final result from Queue 4: 18446744071607418880
+Final result from Queue 4: 18446744071607418880
+Final result from Queue 4: 18446744071607418880
+
+Number of threads: 3
+Array size: 10
+Queue 2 size: 100
+Queue 3 size: 100
+Queue 4 size: 100
+group: 1
+Thread assignments:
+Thread 0 assigned stages: 1 
+Thread 1 assigned stages: 2 
+Thread 2 assigned stages: 3 
+
+ Performance counter stats for './with_queue_size1 10 100 100 100 100':
+
+      40320.085477      cpu-clock (msec)          #    2.606 CPUs utilized          
+      40320.200423      task-clock (msec)         #    2.607 CPUs utilized          
+       39237281215      cache-references          #  973.143 M/sec                    (49.95%)
+       76114103156      cycles                    #    1.888 GHz                      (56.20%)
+       73783772178      instructions              #    0.97  insn per cycle           (56.26%)
+         131790074      cache-misses              #    0.336 % of all cache refs      (56.25%)
+          61424384      L1-dcache-load-misses     #    0.23% of all L1-dcache hits    (56.27%)
+       27280254383      L1-dcache-loads           #  676.591 M/sec                    (43.85%)
+          70626858      L1-dcache-store-misses    #    1.752 M/sec                    (43.86%)
+       11771121336      L1-dcache-stores          #  291.941 M/sec                    (43.86%)
+             56909      LLC-load-misses                                               (37.56%)
+             49334      LLC-store-misses          #    0.001 M/sec                    (37.56%)
+         305973777      armv7_cortex_a15/l2d_cache/ #    7.589 M/sec                    (37.54%)
+            106004      armv7_cortex_a15/l2d_cache_refill/ #    0.003 M/sec                    (37.52%)
+     <not counted>      armv7_cortex_a7/l2d_cache/                                     (0.00%)
+     <not counted>      armv7_cortex_a7/l2d_cache_refill/                                     (0.00%)
+       15372166132      armv7_cortex_a15/bus_cycles/ #  381.253 M/sec                    (49.95%)
+       76104405526      armv7_cortex_a15/cpu_cycles/ # 1887.503 M/sec                    (49.96%)
+
+      15.469062364 seconds time elapsed
+
+
