@@ -11,6 +11,8 @@
 #define FUNC2 2
 #define FUNC3 3
 
+//int complexity_computations = 1000000000;
+
 typedef struct {
     int thread_id;
     int stages[3];
@@ -73,35 +75,41 @@ void write_element_to_queue(queue_t *q, int value) {
     q->elements[q->write_pos] = value;
 }
 
-int fibonacci_iterative(int n) {
-    if (n <= 1) return n;
-    int a = 0, b = 1, c;
-    for (int i = 2; i <= n; i++) {
-        c = a + b;
-        a = b;
-        b = c;
+void computation() {
+    int n = 1000000000;
+    for (int i = 0; i < n; i++) {
     }
-    return b;
 }
 
-unsigned long long factorial_iterative(int n) {
-    if (n > 20) {
-        n = 20;
-    }
-    if (n == 0) return 1;
-    unsigned long long result = 1;
-    for (int i = 2; i <= n; i++) {
-        result *= i;
-    }
-    return result;
-}
-
-void heavy_computation(int n) {
-    volatile int sum = 0;
-    for (int i = 0; i < n * 10000; i++) {
-        sum += i;
-    }
-}
+//int fibonacci_iterative(int n) {
+//    if (n <= 1) return n;
+//    int a = 0, b = 1, c;
+//    for (int i = 2; i <= n; i++) {
+//        c = a + b;
+//        a = b;
+//        b = c;
+//    }
+//    return b;
+//}
+//
+//unsigned long long factorial_iterative(int n) {
+//    if (n > 20) {
+//        n = 20;
+//    }
+//    if (n == 0) return 1;
+//    unsigned long long result = 1;
+//    for (int i = 2; i <= n; i++) {
+//        result *= i;
+//    }
+//    return result;
+//}
+//
+//void heavy_computation(int n) {
+//    volatile int sum = 0;
+//    for (int i = 0; i < n * 10000; i++) {
+//        sum += i;
+//    }
+//}
 
 void stage1(int thread_id) {
     pthread_mutex_lock(&queue_mutex[0]);
@@ -110,14 +118,11 @@ void stage1(int thread_id) {
 
     if (input == TERM_TOKEN) return;
 
-    int fib_result = fibonacci_iterative(input % 40);
-    heavy_computation(fib_result);
-
+    computation();
     pthread_mutex_lock(&queue_mutex[1]);
-    write_element_to_queue(&queue2, fib_result);
+    write_element_to_queue(&queue2, input);
     pthread_mutex_unlock(&queue_mutex[1]);
-
-    printf("Thread %d for Stage 1, input= %d, result= %d\n", thread_id, input, fib_result);
+    printf("Thread %d for Stage 1, input= %d\n", thread_id, input);
 }
 
 void stage2(int thread_id) {
@@ -127,14 +132,12 @@ void stage2(int thread_id) {
 
     if (input == TERM_TOKEN) return;
 
-    int fib_result = fibonacci_iterative(input % 40);
-    heavy_computation(fib_result);
-
+    computation();
     pthread_mutex_lock(&queue_mutex[2]);
-    write_element_to_queue(&queue3, fib_result);
+    write_element_to_queue(&queue3, input);
     pthread_mutex_unlock(&queue_mutex[2]);
 
-    printf("Thread %d for Stage 2, input= %d, result= %d\n", thread_id, input, fib_result);
+    printf("Thread %d for Stage 2, input= %d\n", thread_id, input);
 }
 
 void stage3(int thread_id) {
@@ -144,13 +147,11 @@ void stage3(int thread_id) {
 
     if (input == TERM_TOKEN) return;
 
-    unsigned long long fact_result = factorial_iterative(input);
-
+    computation();
     pthread_mutex_lock(&queue_mutex[3]);
-    write_element_to_queue(&queue4, fact_result);
+    write_element_to_queue(&queue4, input);
     pthread_mutex_unlock(&queue_mutex[3]);
-
-    printf("Thread %d performing Stage 3, input= %d, fact_result= %llu\n", thread_id, input, fact_result);
+    printf("Thread %d for Stage 3, input= %d\n", thread_id, input);
 }
 
 void* thread_function(void* arg) {
