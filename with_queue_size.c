@@ -75,7 +75,7 @@ void write_element_to_queue(queue_t *q, int value, int queue_index) {
 }
 
 void computation() {
-    int n = 1000000000; // Example computational load
+    int n = 1000000000;
     for (int i = 0; i < n; i++) {
     }
 }
@@ -110,7 +110,7 @@ void stage2(int thread_id) {
 
 void stage3(int thread_id) {
     int input;
-    if (group == 4) return;  // Skip Stage 3 in group 4
+    if (group == 4) return;
 
     pthread_mutex_lock(&queue_mutex[2]);
     input = get_element_from_queue(&queue3);
@@ -118,7 +118,7 @@ void stage3(int thread_id) {
     if (input == TERM_TOKEN) return;
 
     computation();
-    if (group != 4) {  // Skip writing to queue4 in group 4
+    if (group != 4) {  
         pthread_mutex_lock(&queue_mutex[3]);
         write_element_to_queue(&queue4, input, 3);
         pthread_mutex_unlock(&queue_mutex[3]);
@@ -133,8 +133,8 @@ void stage1_and_stage2(int thread_id) {
     pthread_mutex_unlock(&queue_mutex[0]);
     if (input == TERM_TOKEN) return;
 
-    computation(); // Stage 1
-    computation(); // Stage 2
+    computation();
+    computation();
 
     pthread_mutex_lock(&queue_mutex[1]);
     write_element_to_queue(&queue2, input, 1);
@@ -149,8 +149,8 @@ void stage2_and_stage3(int thread_id) {
     pthread_mutex_unlock(&queue_mutex[1]);
     if (input == TERM_TOKEN) return;
 
-    computation(); // Stage 2
-    computation(); // Stage 3
+    computation(); 
+    computation(); 
 
     pthread_mutex_lock(&queue_mutex[2]);
     write_element_to_queue(&queue3, input, 2);
@@ -165,16 +165,16 @@ void merged_stages(int thread_id) {
     pthread_mutex_unlock(&queue_mutex[0]);
     if (input == TERM_TOKEN) return;
 
-    computation(); // Stage 1
-    computation(); // Stage 2
-    computation(); // Stage 3
+    computation(); 
+    computation();
+    computation();
 
     pthread_mutex_lock(&queue_mutex[1]);
     write_element_to_queue(&queue2, input, 1);
     pthread_mutex_unlock(&queue_mutex[1]);
     printf("Thread %d for Merged Stages 1+2+3, input= %d\n", thread_id, input);
 
-    if (group != 2 && group != 3) {  // Skip queue4 for group 2 and 3
+    if (group != 2 && group != 3) { 
         pthread_mutex_lock(&queue_mutex[3]);
         write_element_to_queue(&queue4, input, 3);
         pthread_mutex_unlock(&queue_mutex[3]);
