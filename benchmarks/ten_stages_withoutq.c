@@ -81,17 +81,47 @@ void computation() {
     for (int i = 0; i < 100000000; i++);
 }
 
+//void memory_intensive() {
+//    static int array[1000000];  // Smaller array (1M elements ≈ 4MB)
+//    int sum = 0;
+//
+//    for (int i = 0; i < 1000000; i++) {  // Fewer iterations
+//        int index = rand() % 1000000;  // Smaller range of access
+//        sum += array[index];
+//    }
+//
+//    printf("%d\n", sum);
+//}
+
+
 void memory_intensive() {
-    static int array[100000000];
+    static int array[100000000];  // med
     int sum = 0;
 
-    for (int i = 0; i < 10000000; i++) {
-        int index = rand() % 10000000;
+    for (int i = 0; i < 10000000; i++) {  // med iterations
+        int index = rand() % 100000000;  // med random range
         sum += array[index];
     }
 
     printf("%d\n", sum);
 }
+
+//void memory_intensive() {
+//    static int array[500000000];  // Very large array
+//    int sum = 0;
+//    
+//    for (int i = 0; i < 50000000; i++) {
+//        int index = (rand() % 500000000) * 16;  // Large strides for more cache misses
+//        sum += array[index % 500000000];  // Ensure we stay within bounds
+//    }
+//
+//    printf("%d\n", sum);
+//}
+
+
+
+
+
 
 
 void stage1(int thread_id) {
@@ -99,7 +129,8 @@ void stage1(int thread_id) {
     int input = get_element_from_queue(&queue1);
     pthread_mutex_unlock(&queue_mutex[0]);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     pthread_mutex_lock(&queue_mutex[1]);
     write_element_to_queue(&queue2, input);
     pthread_mutex_unlock(&queue_mutex[1]);
@@ -111,7 +142,8 @@ void stage2(int thread_id) {
     int input = get_element_from_queue(&queue2);
     pthread_mutex_unlock(&queue_mutex[1]);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     pthread_mutex_lock(&queue_mutex[2]);
     write_element_to_queue(&queue3, input);
     pthread_mutex_unlock(&queue_mutex[2]);
@@ -123,7 +155,8 @@ void stage3(int thread_id) {
     int input = get_element_from_queue(&queue3);
     pthread_mutex_unlock(&queue_mutex[2]);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     pthread_mutex_lock(&queue_mutex[3]);
     write_element_to_queue(&queue4, input);
     pthread_mutex_unlock(&queue_mutex[3]);
@@ -135,7 +168,8 @@ void stage4(int thread_id) {
     int input = get_element_from_queue(&queue4);
     pthread_mutex_unlock(&queue_mutex[3]);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     pthread_mutex_lock(&queue_mutex[4]);
     write_element_to_queue(&queue5, input);
     pthread_mutex_unlock(&queue_mutex[4]);
@@ -147,7 +181,8 @@ void stage5(int thread_id) {
     int input = get_element_from_queue(&queue5);
     pthread_mutex_unlock(&queue_mutex[4]);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     printf("Thread %d for Stage 5, input= %d\n", thread_id, input);
 }
 
@@ -156,7 +191,8 @@ void stage6(int thread_id) {
     int input = get_element_from_queue(&queue6);
     pthread_mutex_unlock(&queue_mutex[5]);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     printf("Thread %d for Stage 6, input= %d\n", thread_id, input);
 }
 
@@ -174,7 +210,8 @@ void stage8(int thread_id) {
     int input = get_element_from_queue(&queue8);
     pthread_mutex_unlock(&queue_mutex[7]);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     printf("Thread %d for Stage 8, input= %d\n", thread_id, input);
 }
 
@@ -183,7 +220,8 @@ void stage9(int thread_id) {
     int input = get_element_from_queue(&queue9);
     pthread_mutex_unlock(&queue_mutex[8]);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     printf("Thread %d for Stage 9, input= %d\n", thread_id, input);
 }
 
@@ -192,7 +230,8 @@ void stage10(int thread_id) {
     int input = get_element_from_queue(&queue10);
     pthread_mutex_unlock(&queue_mutex[9]);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     printf("Thread %d for Stage 10, input= %d\n", thread_id, input);
 }
 

@@ -111,24 +111,50 @@ void computation() {
     for (int i = 0; i < 500000000; i++);
 }
 
+//void memory_intensive() {
+//    static int array[1000000];  // Smaller array (1M elements ≈ 4MB)
+//    int sum = 0;
+//
+//    for (int i = 0; i < 1000000; i++) {  // Fewer iterations
+//        int index = rand() % 1000000;  // Smaller range of access
+//        sum += array[index];
+//    }
+//
+//    printf("%d\n", sum);
+//}
+
+
 void memory_intensive() {
-    static int array[100000000]; // Large array
+    static int array[100000000];  // med
     int sum = 0;
 
-    for (int i = 0; i < 10000000; i++) {
-        int index = rand() % 10000000; // Random access
-        sum += array[index];  // Forces memory fetches with cache misses
+    for (int i = 0; i < 10000000; i++) {  // med iterations
+        int index = rand() % 100000000;  // med random range
+        sum += array[index];
     }
 
-    printf("%d\n", sum);  // Prevents compiler optimizations
+    printf("%d\n", sum);
 }
+
+//void memory_intensive() {
+//    static int array[500000000];  // Very large array
+//    int sum = 0;
+//
+//    for (int i = 0; i < 50000000; i++) {
+//        int index = (rand() % 500000000) * 16;  // Large strides for more cache misses
+//        sum += array[index % 500000000];  // Ensure we stay within bounds
+//    }
+//
+//    printf("%d\n", sum);
+//}
 
 
 
 void stage1(int thread_id) {
     int input = get_element_from_queue(&queue1);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     write_element_to_queue(&queue2, input, 1);
     printf("Thread %d for Stage 1, input= %d\n", thread_id, input);
 }
@@ -136,7 +162,8 @@ void stage1(int thread_id) {
 void stage2(int thread_id) {
     int input = get_element_from_queue(&queue2);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     write_element_to_queue(&queue3, input, 2);
     printf("Thread %d for Stage 2, input= %d\n", thread_id, input);
 }
@@ -144,7 +171,8 @@ void stage2(int thread_id) {
 void stage3(int thread_id) {
     int input = get_element_from_queue(&queue3);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     write_element_to_queue(&queue4, input, 3);
     printf("Thread %d for Stage 3, input= %d\n", thread_id, input);
 }
@@ -152,7 +180,8 @@ void stage3(int thread_id) {
 void stage4(int thread_id) {
     int input = get_element_from_queue(&queue4);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     write_element_to_queue(&queue5, input, 4);
     printf("Thread %d for Stage 4, input= %d\n", thread_id, input);
 }
@@ -160,7 +189,8 @@ void stage4(int thread_id) {
 void stage5(int thread_id) {
     int input = get_element_from_queue(&queue5);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     write_element_to_queue(&queue6, input, 5);
     printf("Thread %d for Stage 5, input= %d\n", thread_id, input);
 }
@@ -168,7 +198,8 @@ void stage5(int thread_id) {
 void stage6(int thread_id) {
     int input = get_element_from_queue(&queue6);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     write_element_to_queue(&queue7, input, 6);
     printf("Thread %d for Stage 6, input= %d\n", thread_id, input);
 }
@@ -176,7 +207,8 @@ void stage6(int thread_id) {
 void stage7(int thread_id) {
     int input = get_element_from_queue(&queue7);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     write_element_to_queue(&queue8, input, 7);
     printf("Thread %d for Stage 7, input= %d\n", thread_id, input);
 }
@@ -184,7 +216,8 @@ void stage7(int thread_id) {
 void stage8(int thread_id) {
     int input = get_element_from_queue(&queue8);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     write_element_to_queue(&queue9, input, 8);
     printf("Thread %d for Stage 8, input= %d\n", thread_id, input);
 }
@@ -192,7 +225,8 @@ void stage8(int thread_id) {
 void stage9(int thread_id) {
     int input = get_element_from_queue(&queue9);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     write_element_to_queue(&queue10, input, 9);
     printf("Thread %d for Stage 9, input= %d\n", thread_id, input);
 }
@@ -200,7 +234,8 @@ void stage9(int thread_id) {
 void stage10(int thread_id) {
     int input = get_element_from_queue(&queue10);
     if (input == TERM_TOKEN) return;
-    computation();
+//    computation();
+    memory_intensive();
     write_element_to_queue(&queue11, input, 10);
     printf("Thread %d for Stage 10, input= %d\n", thread_id, input);
 }
