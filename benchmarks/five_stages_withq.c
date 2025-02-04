@@ -77,39 +77,44 @@ int get_element_from_queue(queue_t *q) {
     return value;
 }
 
-void write_element_to_queue(queue_t *q, int value) {
+void write_element_to_queue(queue_t *q, int value, int stage_id) {
     pthread_mutex_lock(&queue_mutex[q->index]);
+
     while (q->count == q->size) {
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
         ts.tv_sec += 1;
+
         if (pthread_cond_timedwait(&q->not_full, &queue_mutex[q->index], &ts) == ETIMEDOUT) {
             printf("Queue %d is full. Backing off...\n", q->index + 1);
             pthread_mutex_unlock(&queue_mutex[q->index]);
             return;
         }
     }
+
     q->elements[q->write_pos] = value;
     q->write_pos = (q->write_pos + 1) % q->size;
     q->count++;
+
     pthread_cond_signal(&q->not_empty);
     pthread_mutex_unlock(&queue_mutex[q->index]);
 }
+
 
 void computation() {
     for (int i = 0; i < 500000000; i++);
 }
 
-vvoid memory_intensive() {
-    static int array[100000000];
+void memory_intensive() {
+    static int array[100000000]; // Large array
     int sum = 0;
 
     for (int i = 0; i < 10000000; i++) {
-        int index = rand() % 10000000;
-        sum += array[index];
+        int index = rand() % 10000000; // Random access
+        sum += array[index];  // Forces memory fetches with cache misses
     }
 
-    printf("%d\n", sum);
+    printf("%d\n", sum);  // Prevents compiler optimizations
 }
 
 
@@ -118,7 +123,7 @@ void stage1(int thread_id) {
     int input = get_element_from_queue(&queue1);
     if (input == TERM_TOKEN) return;
     computation();
-    write_element_to_queue(&queue2, input);
+    write_element_to_queue(&queue2, input, 1);
     printf("Thread %d for Stage 1, input= %d\n", thread_id, input);
 }
 
@@ -126,7 +131,7 @@ void stage2(int thread_id) {
     int input = get_element_from_queue(&queue2);
     if (input == TERM_TOKEN) return;
     computation();
-    write_element_to_queue(&queue3, input);
+    write_element_to_queue(&queue3, input, 2);
     printf("Thread %d for Stage 2, input= %d\n", thread_id, input);
 }
 
@@ -134,7 +139,7 @@ void stage3(int thread_id) {
     int input = get_element_from_queue(&queue3);
     if (input == TERM_TOKEN) return;
     computation();
-    write_element_to_queue(&queue4, input);
+    write_element_to_queue(&queue4, input, 3);
     printf("Thread %d for Stage 3, input= %d\n", thread_id, input);
 }
 
@@ -142,7 +147,7 @@ void stage4(int thread_id) {
     int input = get_element_from_queue(&queue4);
     if (input == TERM_TOKEN) return;
     computation();
-    write_element_to_queue(&queue5, input);
+    write_element_to_queue(&queue5, input, 4);
     printf("Thread %d for Stage 4, input= %d\n", thread_id, input);
 }
 
@@ -150,7 +155,7 @@ void stage5(int thread_id) {
     int input = get_element_from_queue(&queue5);
     if (input == TERM_TOKEN) return;
     computation();
-    write_element_to_queue(&queue6, input);
+    write_element_to_queue(&queue6, input, 5);
     printf("Thread %d for Stage 5, input= %d\n", thread_id, input);
 }
 
@@ -178,7 +183,7 @@ void* thread_function(void* arg) {
 void queue1_values(queue_t *q) {
     for (int i = 0; i < Arr_size; i++) {
         int input = rand() % 100;
-        write_element_to_queue(q, input);
+        write_element_to_queue(q, input, 1);
     }
 }
 
@@ -188,35 +193,67 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     Arr_size = atoi(argv[1]);
+    int queue2_size = atoi(argv[2]);
+    int queue3_size = atoi(argv[3]);
+    int queue4_size = atoi(argv[4]);
+    int queue5_size = atoi(argv[5]);
+    int queue6_size = atoi(argv[6]);
+
     pthread_t threads[MAX_THREADS];
     init_queue(&queue1, 0, Arr_size);
-    for (int i = 1; i < 6; i++) init_queue(&queue2 + (i - 1), i, atoi(argv[i + 1]));
+    init_queue(&queue2, 1, queue2_size);
+    init_queue(&queue3, 2, queue3_size);
+    init_queue(&queue4, 3, queue4_size);
+    init_queue(&queue5, 4, queue5_size);
+    init_queue(&queue6, 5, queue6_size);
+
     queue1_values(&queue1);
-    for (int i = 0; i < 6; i++) pthread_mutex_init(&queue_mutex[i], NULL);
+    
+    for (int i = 0; i < 6; i++) {
+        pthread_mutex_init(&queue_mutex[i], NULL);
+    }
+    
     thread_config_t thread_configs[MAX_THREADS];
+    
+    
+    
+
+    // Configure threads based on group
     if (group == 1) {
         thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
         thread_configs[1] = (thread_config_t){ 1, { FUNC2 }, 1 };
         thread_configs[2] = (thread_config_t){ 2, { FUNC3 }, 1 };
-//        thread_configs[3] = (thread_config_t){ 3, { FUNC4 }, 1 };
-//        thread_configs[4] = (thread_config_t){ 4, { FUNC5 }, 1 };
+
     } else if (group == 2) {
         thread_configs[0] = (thread_config_t){ 0, { FUNC1, FUNC2 }, 2 };
-        thread_configs[1] = (thread_config_t){ 1, { FUNC3 }, 1 };
-        thread_configs[2] = (thread_config_t){ 2, { FUNC3 }, 1 };
+
     } else if (group == 3) {
         thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
-        thread_configs[1] = (thread_config_t){ 1, { FUNC1 }, 1 };
-        thread_configs[2] = (thread_config_t){ 2, { FUNC2, FUNC3 }, 2 };
+
     } else if (group == 4) {
         thread_configs[0] = (thread_config_t){ 0, { FUNC1, FUNC2, FUNC3 }, 3 };
-        thread_configs[1] = (thread_config_t){ 1, { FUNC1, FUNC2, FUNC3 }, 3 };
-        thread_configs[2] = (thread_config_t){ 2, { FUNC1, FUNC2, FUNC3 }, 3 };
+
     }
     
-    for (int i = 0; i < MAX_THREADS; i++) pthread_create(&threads[i], NULL, thread_function, (void *)&thread_configs[i]);
-    for (int i = 0; i < MAX_THREADS; i++) pthread_join(threads[i], NULL);
-    for (int i = 0; i < 6; i++) free_queue(&queue1 + i);
+    clock_t start = clock();
+    for (int i = 0; i < MAX_THREADS; i++) {
+        pthread_create(&threads[i], NULL, thread_function, (void *)&thread_configs[i]);
+    }
+
+    for (int i = 0; i < MAX_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    clock_t end = clock();
+    double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("Time spent: %f seconds\n", time_spent);
+    
+    free_queue(&queue1);
+    free_queue(&queue2);
+    free_queue(&queue3);
+    free_queue(&queue4);
+    free_queue(&queue5);
+    free_queue(&queue6);
     
     
     printf("\nNumber of threads: %d\n", MAX_THREADS);
