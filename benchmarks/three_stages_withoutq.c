@@ -145,9 +145,17 @@ void write_element_to_queue(queue_t *q, int value, int stage_id) {
 
 
 
+// void computation() {
+//     for (int i = 0; i < 100000000; i++);
+// }
 void computation() {
-    for (int i = 0; i < 100000000; i++);
+    long long sum = 1;
+    for (int i = 1; i <= 100000000; i++) {
+        sum *= (i % 10) + 1; 
+    }
+    volatile long long result = sum; 
 }
+
 
 void memory_intensive() {
     static int array[100000000];
