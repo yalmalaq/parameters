@@ -134,10 +134,17 @@ void write_element_to_queue(queue_t *q, int value, int stage_id) {
     pthread_mutex_unlock(&queue_mutex[q->index]);
 }
 
+// void computation() {
+//     int n = 1000000000;
+//     for (int i = 0; i < n; i++) {
+//     }
+// }
 void computation() {
-    int n = 1000000000;
-    for (int i = 0; i < n; i++) {
+    long long sum = 1;
+    for (int i = 1; i <= 100000000; i++) {
+        sum *= (i % 10) + 1; 
     }
+    volatile long long result = sum; 
 }
 void memory_intensive() {
     static int array[100000000]; // Large array
