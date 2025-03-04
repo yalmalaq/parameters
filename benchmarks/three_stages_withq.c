@@ -158,6 +158,36 @@ void memory_intensive() {
     printf("%d\n", sum);  // Prevents compiler optimizations
 }
 
+int fibonacci_iterative(int n) {
+    if (n <= 1) return n;
+    int a = 0, b = 1, c;
+    for (int i = 2; i <= n; i++) {
+        c = a + b;
+        a = b;
+        b = c;
+    }
+    return b;
+}
+
+unsigned long long factorial_iterative(int n) {
+    if (n > 20) {
+        printf("Warning: Factorial input %d is too large, limiting to 20!\n", n);
+        n = 20;
+    }
+    if (n == 0) return 1;
+    unsigned long long result = 1;
+    for (int i = 2; i <= n; i++) {
+        result *= i;
+    }
+    return result;
+}
+
+void heavy_computation(int n) {
+    volatile int sum = 0;
+    for (int i = 0; i < n * 10000; i++) {
+        sum += i;
+    }
+}
 
 
 void stage1(int thread_id) {
@@ -165,6 +195,8 @@ void stage1(int thread_id) {
     if (input == TERM_TOKEN) return;
 
     computation();
+    // int fib_result = fibonacci_iterative(input % 40);
+    //         heavy_computation(fib_result);
 
     write_element_to_queue(&queue2, input, 1);
     printf("Thread %d for Stage 1, input= %d\n", thread_id, input);
@@ -175,6 +207,8 @@ void stage2(int thread_id) {
     if (input == TERM_TOKEN) return;
 
     computation();
+    // int fib_stage2 = fibonacci_iterative(input % 40);
+    //         heavy_computation(fib_stage2);
 
     write_element_to_queue(&queue3, input, 2);
     printf("Thread %d for Stage 2, input= %d\n", thread_id, input);
@@ -185,7 +219,7 @@ void stage3(int thread_id) {
     if (input == TERM_TOKEN) return;
 
     computation();
-
+ unsigned long long fact_stage3 = factorial_iterative(input);
     write_element_to_queue(&queue4, input, 3);
     printf("Thread %d for Stage 3, input= %d\n", thread_id, input);
 }
