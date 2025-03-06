@@ -16,7 +16,9 @@
 
 #define FUNC1_AND_FUNC2 7
 #define FUNC2_AND_FUNC3 8
-#define MERGED_FUNC 9
+#define FUNC3_AND_FUNC4 9
+#define FUNC4_AND_FUNC5 10
+#define MERGED_FUNC 11
 
 int group = 1;
 
@@ -240,6 +242,30 @@ void stage2_and_stage3(int thread_id) {
     printf("Thread %d for Merged Stage 2+3, input= %d\n", thread_id, input);
 }
 
+void stage3_and_stage4(int thread_id) {
+    int input = get_element_from_queue(&queue3);
+    if (input == TERM_TOKEN) return;
+
+    memory_intensive();
+    memory_intensive();
+
+    write_element_to_queue(&queue4, input, 3);
+    printf("Thread %d for Merged Stage 3+4, input= %d\n", thread_id, input);
+}
+
+
+void stage4_and_stage5(int thread_id) {
+    int input = get_element_from_queue(&queue4);
+    if (input == TERM_TOKEN) return;
+
+    memory_intensive();
+    memory_intensive();
+
+    write_element_to_queue(&queue5, input, 4);
+    printf("Thread %d for Merged Stage 4+5, input= %d\n", thread_id, input);
+}
+
+
 void merged_stages(int thread_id) {
     int input = get_element_from_queue(&queue1);
     if (input == TERM_TOKEN) return;
@@ -295,6 +321,13 @@ void* thread_function(void* arg) {
                 case FUNC2_AND_FUNC3:
                     stage2_and_stage3(config->thread_id);
                     break;
+                 case FUNC3_AND_FUNC4:
+                    stage3_and_stage4(config->thread_id);
+                    break;
+                case FUNC4_AND_FUNC5:
+                    stage4_and_stage5(config->thread_id);
+                    break;
+                
                 case MERGED_FUNC:
                     merged_stages(config->thread_id);
                     break;
@@ -373,13 +406,25 @@ int main(int argc, char *argv[]) {
         thread_configs[4] = (thread_config_t){ 4, { FUNC5 }, 1 };
 
     } else if (group == 2) {
-        thread_configs[0] = (thread_config_t){ 0, { FUNC1, FUNC2 }, 2 };
+        thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
+        thread_configs[1] = (thread_config_t){ 1, { FUNC2, FUNC3 }, 2 };
+        thread_configs[3] = (thread_config_t){ 2, { FUNC2, FUNC3 }, 2 };
+        thread_configs[3] = (thread_config_t){ 3, { FUNC4 }, 1 };
+        thread_configs[4] = (thread_config_t){ 4, { FUNC5 }, 1 };
 
     } else if (group == 3) {
-        thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
+      thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
+        thread_configs[1] = (thread_config_t){ 1, { FUNC2 }, 1 };
+        thread_configs[2] = (thread_config_t){ 2, { FUNC3, FUNC4 }, 2 };
+        thread_configs[3] = (thread_config_t){ 3, { FUNC3, FUNC4 }, 2 };
+        thread_configs[4] = (thread_config_t){ 4, { FUNC5 }, 1 };
 
     } else if (group == 4) {
-        thread_configs[0] = (thread_config_t){ 0, { FUNC1, FUNC2, FUNC3 }, 3 };
+        thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
+        thread_configs[1] = (thread_config_t){ 1, { FUNC2 }, 1 };
+        thread_configs[2] = (thread_config_t){ 2, { FUNC3 }, 1 };
+        thread_configs[3] = (thread_config_t){ 3, { FUNC4, FUNC5  }, 2 };
+        thread_configs[4] = (thread_config_t){ 4, { FUNC4, FUNC5 }, 2 };
 
     }
 
