@@ -1,2 +1,2 @@
 # System and Parallel Applications Parameters 
-In this work, we explored the external parameters (system parameters) and internal parameters(application parameters).
+In this work, we explored application-level parameters tuning of parallel applications, our example of app is pipeline
