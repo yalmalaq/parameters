@@ -134,11 +134,8 @@ void write_element_to_queue(queue_t *q, int value, int stage_id) {
     pthread_mutex_unlock(&queue_mutex[q->index]);
 }
 
-// void computation() {
-//     int n = 1000000000;
-//     for (int i = 0; i < n; i++) {
-//     }
-// }
+
+// CPU-intensive workload
 void computation() {
     long long sum = 1;
     for (int i = 1; i <= 100000000; i++) {
@@ -146,16 +143,18 @@ void computation() {
     }
     volatile long long result = sum; 
 }
+
+// memory_intensive workload
 void memory_intensive() {
-    static int array[100000000]; // Large array
+    static int array[100000000]; 
     int sum = 0;
 
     for (int i = 0; i < 100000000; i++) {
-        int index = rand() % 100000000; // Random access
-        sum += array[index];  // Forces memory fetches with cache misses
+        int index = rand() % 100000000; 
+        sum += array[index];  
     }
 
-    printf("%d\n", sum);  // Prevents compiler optimizations
+    printf("%d\n", sum); 
 }
 
 int fibonacci_iterative(int n) {
@@ -346,6 +345,8 @@ int main(int argc, char *argv[]) {
     // Configure threads based on group
     if (group == 1) {
         thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
+         thread_configs[1] = (thread_config_t){ 1, { FUNC1 }, 1 };
+         thread_configs[2] = (thread_config_t){ 2, { FUNC1 }, 1 };
 
     } else if (group == 2) {
         thread_configs[0] = (thread_config_t){ 0, { FUNC1, FUNC2 }, 2 };
