@@ -11,13 +11,7 @@
 #define FUNC2 2
 #define FUNC3 4
 
-
-
-#define FUNC1_AND_FUNC2 7
-#define FUNC2_AND_FUNC3 8
-#define MERGED_FUNC 9
-
-#define MAX_QUEUE_SIZE 100000000  // Prevents queue from growing infinitely
+#define MAX_QUEUE_SIZE 100000000
 
 
 
@@ -94,30 +88,7 @@ int get_element_from_queue(queue_t *q) {
 
     return value;
 }
-
-//void write_element_to_queue(queue_t *q, int value) {
-//    pthread_mutex_lock(&queue_mutex[q->index]);
-//
-//    while (q->count == q->size) {
-//        struct timespec ts;
-//        clock_gettime(CLOCK_REALTIME, &ts);
-//        ts.tv_sec += 1;
-//
-//        if (pthread_cond_timedwait(&q->not_full, &queue_mutex[q->index], &ts) == ETIMEDOUT) {
-//            printf("Queue %d is full. Backing off...\n", q->index + 1);
-//            pthread_mutex_unlock(&queue_mutex[q->index]);
-//            return;
-//        }
-//    }
-//
-//    q->elements[q->write_pos] = value;
-//    q->write_pos = (q->write_pos + 1) % q->size;
-//    q->count++;
-//
-//    pthread_cond_signal(&q->not_empty);
-//    pthread_mutex_unlock(&queue_mutex[q->index]);
-//}
-void write_element_to_queue(queue_t *q, int value, int stage_id) {
+ void write_element_to_queue(queue_t *q, int value, int stage_id) {
     pthread_mutex_lock(&queue_mutex[q->index]);
 
     if (q->count == q->size && q->size < MAX_QUEUE_SIZE) {
@@ -144,10 +115,7 @@ void write_element_to_queue(queue_t *q, int value, int stage_id) {
 
 
 
-
-// void computation() {
-//     for (int i = 0; i < 100000000; i++);
-// }
+//CPU workload
 void computation() {
     long long sum = 1;
     for (int i = 1; i <= 100000000; i++) {
@@ -156,7 +124,7 @@ void computation() {
     volatile long long result = sum; 
 }
 
-
+//memory workload
 void memory_intensive() {
     static int array[100000000];
     int sum = 0;
@@ -203,44 +171,6 @@ void stage3(int thread_id) {
 
 
 
-void stage1_and_stage2(int thread_id) {
-    int input = get_element_from_queue(&queue1);
-    if (input == TERM_TOKEN) return;
-
-    memory_intensive();
-    memory_intensive();
-
-    write_element_to_queue(&queue2, input, 1);
-    printf("Thread %d for Merged Stage 1+2, input= %d\n", thread_id, input);
-}
-
-void stage2_and_stage3(int thread_id) {
-    int input = get_element_from_queue(&queue2);
-    if (input == TERM_TOKEN) return;
-
-    memory_intensive();
-    memory_intensive();
-
-    write_element_to_queue(&queue3, input, 2);
-    printf("Thread %d for Merged Stage 2+3, input= %d\n", thread_id, input);
-}
-
-void merged_stages(int thread_id) {
-    int input = get_element_from_queue(&queue1);
-    if (input == TERM_TOKEN) return;
-
-    memory_intensive();
-    memory_intensive();
-    memory_intensive();
-
-    write_element_to_queue(&queue2, input, 1);
-    printf("Thread %d for Merged Stages 1+2+3, input= %d\n", thread_id, input);
-
-    if (group != 2 && group != 3 && group != 4) {
-        write_element_to_queue(&queue4, input, 3);
-    }
-
-}
 
 ///////////////////
 ///
@@ -268,15 +198,6 @@ void* thread_function(void* arg) {
                     stage3(config->thread_id);
                     break;
                     
-                case FUNC1_AND_FUNC2:
-                    stage1_and_stage2(config->thread_id);
-                    break;
-                case FUNC2_AND_FUNC3:
-                    stage2_and_stage3(config->thread_id);
-                    break;
-                case MERGED_FUNC:
-                    merged_stages(config->thread_id);
-                    break;
             }
         }
 
@@ -297,16 +218,7 @@ void queue1_values(queue_t *q) {
 //    for (int i = 0; i < Arr_size; i++) {
 //        int input = rand() % 100;
 //        write_element_to_queue(q, input, 1);
-//    }
-//
-//    // Prefill stage queues to prevent initial slow memory accesses
-//    for (int i = 0; i < Arr_size / 2; i++) {  // Load into deeper queues
-//        write_element_to_queue(&queue2, rand() % 100, 2);
-//        write_element_to_queue(&queue3, rand() % 100, 3);
-//        write_element_to_queue(&queue4, rand() % 100, 4);
-//        write_element_to_queue(&queue5, rand() % 100, 5);
-//    }
-//}
+
 
 
 int main(int argc, char *argv[]) {
@@ -318,11 +230,6 @@ int main(int argc, char *argv[]) {
     }
 
     Arr_size = atoi(argv[1]);
-//    int queue2_size = atoi(argv[2]);
-//    int queue3_size = atoi(argv[3]);
-//    int queue4_size = atoi(argv[4]);
-//    int queue5_size = atoi(argv[5]);
-//    int queue6_size = atoi(argv[6]);
 
     pthread_t threads[MAX_THREADS];
     init_queue(&queue1, 0, Arr_size);
