@@ -1,300 +1,292 @@
+#define _GNU_SOURCE
+#include <pthread.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <unistd.h>
-#include <time.h>
-#include <errno.h>
 
-#define TERM_TOKEN -1
-#define MAX_THREADS 3
-#define FUNC1 1
-#define FUNC2 2
-#define FUNC3 4
+#define FORCE_CPU_BINDING
+#ifdef FORCE_CPU_BINDING
+void bind_thread_to_core(int core_id) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);
+    
+    pthread_t current_thread = pthread_self();
+    int result = pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+    if (result != 0)
+        fprintf(stderr, "Error binding thread %lu to core %d: %d\n",
+                (unsigned long)current_thread, core_id, result);
+    else
+        printf("Thread %lu bound to core %d\n", (unsigned long)current_thread, core_id);
+}
+#define MAYBE_BIND(core) bind_thread_to_core(core)
+#else
+#define MAYBE_BIND(core)
+#endif
 
-#define MAX_QUEUE_SIZE 100000000
+
+#define NUM_TASKS 10
+#define TERMINATION_TASK -1
 
 
+#define STAGE1_THREADS 1
+#define STAGE2_THREADS 3
+#define STAGE3_THREADS 4
 
-int group = 1;
+
+typedef struct node {
+    int data;
+    struct node *next;
+} node_t;
 
 typedef struct {
-    int thread_id;
-    int stages[3];
-    int stage_count;
-} thread_config_t;
-
-typedef struct {
-    int *elements;
-    int read_pos;
-    int write_pos;
-    int count;
-    int size;
-    pthread_cond_t not_full;
+    node_t *head;
+    node_t *tail;
+    pthread_mutex_t mutex;
     pthread_cond_t not_empty;
-    int index;
 } queue_t;
 
-queue_t queue1, queue2, queue3, queue4;
-pthread_mutex_t queue_mutex[4];
-int Arr_size;
-int full_count[4];
-
-void init_queue(queue_t *q, int index, int size) {
-    q->elements = (int *)malloc(size * sizeof(int));
-    q->read_pos = 0;
-    q->write_pos = 0;
-    q->count = 0;
-    q->size = (index == 0) ? size : 10;
-    pthread_cond_init(&q->not_full, NULL);
-    pthread_cond_init(&q->not_empty, NULL);
-    q->index = index;
-}
-
-void free_queue(queue_t *q) {
-    free(q->elements);
-    pthread_cond_destroy(&q->not_full);
-    pthread_cond_destroy(&q->not_empty);
-}
-
-int empty_queue(queue_t *q) {
-    return q->count == 0;
-}
-
-int full_queue(queue_t *q) {
-    return q->count == q->size;
-}
-
-int get_element_from_queue(queue_t *q) {
-    pthread_mutex_lock(&queue_mutex[q->index]);
-
-    while (q->count == 0) {
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
-       ts.tv_sec += 1;
-
-        if (pthread_cond_timedwait(&q->not_empty, &queue_mutex[q->index], &ts) == ETIMEDOUT) {
-            printf("Queue %d is empty. Returning TERM_TOKEN...\n", q->index + 1);
-            pthread_mutex_unlock(&queue_mutex[q->index]);
-            return TERM_TOKEN;
-        }
+queue_t* init_queue() {
+    queue_t *q = malloc(sizeof(queue_t));
+    if (!q) {
+        perror("malloc queue_t");
+        exit(EXIT_FAILURE);
     }
+    q->head = q->tail = NULL;
+    pthread_mutex_init(&q->mutex, NULL);
+    pthread_cond_init(&q->not_empty, NULL);
+    return q;
+}
 
-    int value = q->elements[q->read_pos];
-    q->read_pos = (q->read_pos + 1) % q->size;
-    q->count--;
+void write_queue(queue_t *q, int value) {
+    node_t *new_node = malloc(sizeof(node_t));
+    if (!new_node) {
+        perror("malloc node_t");
+        exit(EXIT_FAILURE);
+    }
+    new_node->data = value;
+    new_node->next = NULL;
+    
+    pthread_mutex_lock(&q->mutex);
+    if (q->tail)
+        q->tail->next = new_node;
+    else
+        q->head = new_node;
+    q->tail = new_node;
+    pthread_cond_signal(&q->not_empty);
+    pthread_mutex_unlock(&q->mutex);
+}
 
-    pthread_cond_signal(&q->not_full);
-    pthread_mutex_unlock(&queue_mutex[q->index]);
-
+int read_queue(queue_t *q) {
+    pthread_mutex_lock(&q->mutex);
+    while (q->head == NULL) {
+        pthread_cond_wait(&q->not_empty, &q->mutex);
+    }
+    node_t *node = q->head;
+    int value = node->data;
+    q->head = node->next;
+    if (q->head == NULL)
+        q->tail = NULL;
+    free(node);
+    pthread_mutex_unlock(&q->mutex);
     return value;
 }
- void write_element_to_queue(queue_t *q, int value, int stage_id) {
-    pthread_mutex_lock(&queue_mutex[q->index]);
 
-    if (q->count == q->size && q->size < MAX_QUEUE_SIZE) {
-        int new_size = q->size * 2;  // Double size
-        if (new_size > MAX_QUEUE_SIZE) new_size = MAX_QUEUE_SIZE;  // Cap at MAX_QUEUE_SIZE
-
-        q->elements = (int *)realloc(q->elements, new_size * sizeof(int));
-        if (!q->elements) {
-            fprintf(stderr, "Error: Queue %d expansion failed\n", q->index);
-            pthread_mutex_unlock(&queue_mutex[q->index]);
-            return;
-        }
-        q->size = new_size;
-        printf("Queue %d resized to %d\n", q->index + 1, q->size);
+void memory_workload() {
+    const size_t ARRAY_SIZE = 100000000;
+    int *array = malloc(ARRAY_SIZE * sizeof(int));
+    if (!array) {
+        perror("Memory allocation failed");
+        exit(EXIT_FAILURE);
     }
-
-    q->elements[q->write_pos] = value;
-    q->write_pos = (q->write_pos + 1) % q->size;
-    q->count++;
-
-    pthread_cond_signal(&q->not_empty);
-    pthread_mutex_unlock(&queue_mutex[q->index]);
+    for (size_t i = 0; i < ARRAY_SIZE; i++)
+        array[i] = i;
+    volatile int accessed_values = 0;
+    size_t stride = 64;
+    for (size_t i = 0; i < ARRAY_SIZE; i += stride)
+        accessed_values += array[i];
+    printf("Memory workload accessed_values: %d\n", accessed_values);
+    fflush(stdout);
+    free(array);
 }
 
-
-
-//CPU workload
-void computation() {
-    long long sum = 1;
-    for (int i = 1; i <= 100000000; i++) {
-        sum *= (i % 10) + 1; 
+void cpu_workload() {
+    double sum = 1.0;
+    for (int i = 1; i <= 50000000; i++) {
+        sum *= (i % 10 + 1.1) / 1.05;
+        sum += (sum / (i % 5 + 1.2)) * 1.03;
+        sum = sum - (sum / 1.07);
     }
-    volatile long long result = sum; 
+    volatile double result = sum;
 }
 
-//memory workload
-void memory_intensive() {
-    static int array[100000000];
-    int sum = 0;
-
-    for (int i = 0; i < 10000000; i++) {
-        int index = rand() % 10000000;
-        sum += array[index];
+//  for Intensive Mathematical Computations. //
+int fibonacci_iterative(int n) {
+    if (n <= 1) return n;
+    int a = 0, b = 1, c;
+    for (int i = 2; i <= n; i++) {
+        c = a + b;
+        a = b;
+        b = c;
     }
-
-    printf("%d\n", sum);
+    return b;
 }
 
-
-void stage1(int thread_id) {
-    int input = get_element_from_queue(&queue1);
-    if (input == TERM_TOKEN) return;
-
-    memory_intensive();
-
-    write_element_to_queue(&queue2, input, 1);
-    printf("Thread %d for Stage 1, input= %d\n", thread_id, input);
-}
-
-void stage2(int thread_id) {
-    int input = get_element_from_queue(&queue2);
-    if (input == TERM_TOKEN) return;
-
-    memory_intensive();
-
-    write_element_to_queue(&queue3, input, 2);
-    printf("Thread %d for Stage 2, input= %d\n", thread_id, input);
-}
-
-void stage3(int thread_id) {
-    int input = get_element_from_queue(&queue3);
-    if (input == TERM_TOKEN) return;
-
-    computation();
-
-    write_element_to_queue(&queue4, input, 3);
-    printf("Thread %d for Stage 3, input= %d\n", thread_id, input);
-}
-
-
-
-
-
-///////////////////
-///
-///
-
-void* thread_function(void* arg) {
-    thread_config_t* config = (thread_config_t*)arg;
-
-    while (1) {
-        int input_queue_empty = 0;
-
-        for (int j = 0; j < config->stage_count; j++) {
-            input_queue_empty = empty_queue(j == 0 ? &queue1 : j == 1 ? &queue2 : &queue3);
-
-            if (input_queue_empty) break;
-
-            switch (config->stages[j]) {
-                case FUNC1:
-                    stage1(config->thread_id);
-                    break;
-                case FUNC2:
-                    stage2(config->thread_id);
-                    break;
-                case FUNC3:
-                    stage3(config->thread_id);
-                    break;
-                    
-            }
-        }
-
-        if (input_queue_empty) break;
+//  for Intensive Mathematical Computations. //
+unsigned long long factorial_iterative(int n) {
+    if (n > 20) {
+        printf("Warning: Factorial input %d is too large, limiting to 20!\n", n);
+        n = 20;
     }
-
-    pthread_exit(NULL);
+    if (n == 0) return 1;
+    unsigned long long result = 1;
+    for (int i = 2; i <= n; i++) {
+        result *= i;
+    }
+    return result;
 }
 
-void queue1_values(queue_t *q) {
-    for (int i = 0; i < Arr_size; i++) {
-        int input = rand() % 100;
-        write_element_to_queue(q, input, 1);
-    }
-}
 
-//void queue1_values(queue_t *q) {
-//    for (int i = 0; i < Arr_size; i++) {
-//        int input = rand() % 100;
-//        write_element_to_queue(q, input, 1);
+typedef struct {
+    queue_t *in_q;
+    queue_t *out_q;
+    const char *stage_name;
+    int bind_core;
+    int stage_thread_index;
+} thread_param_t;
 
-
-
-int main(int argc, char *argv[]) {
-    printf("Debug: MAX_THREADS = %d\n", MAX_THREADS);
-
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s ./app array_size\n", argv[0]);
-        return 1;
-    }
-
-    Arr_size = atoi(argv[1]);
-
-    pthread_t threads[MAX_THREADS];
-    init_queue(&queue1, 0, Arr_size);
-    init_queue(&queue2, 1, Arr_size);
-    init_queue(&queue3, 2, Arr_size);
-    init_queue(&queue4, 3, Arr_size);
+void *stage1(void *arg) {
+    thread_param_t *param = (thread_param_t *)arg;
+    MAYBE_BIND(param->bind_core);
     
+    while (1) {
+        int task = read_queue(param->in_q);
+        if (task == TERMINATION_TASK) {
+            int tokens_to_forward = (STAGE2_THREADS / STAGE1_THREADS) +
+                ((param->stage_thread_index < (STAGE2_THREADS % STAGE1_THREADS)) ? 1 : 0);
+            for (int i = 0; i < tokens_to_forward; i++) {
+                write_queue(param->out_q, TERMINATION_TASK);
+            }
+            break;
+        }
+        cpu_workload();
+        write_queue(param->out_q, task);
+        printf("%s (Thread %d bound to core %d) processed task %d\n",
+               param->stage_name, param->stage_thread_index, param->bind_core, task);
+        fflush(stdout);
+    }
+    
+    return NULL;
+}
 
-    queue1_values(&queue1);
+void *stage2(void *arg) {
+    thread_param_t *param = (thread_param_t *)arg;
+    MAYBE_BIND(param->bind_core);
+    
+    while (1) {
+        int task = read_queue(param->in_q);
+        if (task == TERMINATION_TASK) {
+            int tokens_to_forward = (STAGE3_THREADS / STAGE2_THREADS) +
+                ((param->stage_thread_index < (STAGE3_THREADS % STAGE2_THREADS)) ? 1 : 0);
+            for (int i = 0; i < tokens_to_forward; i++) {
+                write_queue(param->out_q, TERMINATION_TASK);
+            }
+            break;
+        }
+        cpu_workload();
+        write_queue(param->out_q, task);
+        printf("%s (Thread %d bound to core %d) processed task %d\n",
+               param->stage_name, param->stage_thread_index, param->bind_core, task);
+        fflush(stdout);
+    }
+    
+    return NULL;
+}
 
-    for (int i = 0; i < 4; i++) {
-        pthread_mutex_init(&queue_mutex[i], NULL);
+void *stage3(void *arg) {
+    thread_param_t *param = (thread_param_t *)arg;
+    MAYBE_BIND(param->bind_core);
+    
+    while (1) {
+        int task = read_queue(param->in_q);
+        if (task == TERMINATION_TASK)
+            break;
+        cpu_workload();
+        printf("%s (Thread %d bound to core %d) processed task %d\n",
+               param->stage_name, param->stage_thread_index, param->bind_core, task);
+        fflush(stdout);
+    }
+    
+    return NULL;
+}
+
+int main(void) {
+
+    queue_t *queue1 = init_queue();
+    queue_t *queue2 = init_queue();
+    queue_t *queue3 = init_queue();
+
+    pthread_t stage1_threads[STAGE1_THREADS];
+    thread_param_t stage1_params[STAGE1_THREADS];
+    for (int i = 0; i < STAGE1_THREADS; i++) {
+        stage1_params[i].in_q = queue1;
+        stage1_params[i].out_q = queue2;
+        stage1_params[i].stage_name = "Stage 1";
+        stage1_params[i].bind_core = i;  // e.g. cores 0,1,...
+        stage1_params[i].stage_thread_index = i;
+        if (pthread_create(&stage1_threads[i], NULL, stage1, &stage1_params[i]) != 0) {
+            perror("pthread_create stage1");
+            exit(EXIT_FAILURE);
+        }
+    }
+    
+    pthread_t stage2_threads[STAGE2_THREADS];
+    thread_param_t stage2_params[STAGE2_THREADS];
+    for (int i = 0; i < STAGE2_THREADS; i++) {
+        stage2_params[i].in_q = queue2;
+        stage2_params[i].out_q = queue3;
+        stage2_params[i].stage_name = "Stage 2";
+        stage2_params[i].bind_core = STAGE1_THREADS + i;
+        stage2_params[i].stage_thread_index = i;
+        if (pthread_create(&stage2_threads[i], NULL, stage2, &stage2_params[i]) != 0) {
+            perror("pthread_create stage2");
+            exit(EXIT_FAILURE);
+        }
+    }
+    
+    pthread_t stage3_threads[STAGE3_THREADS];
+    thread_param_t stage3_params[STAGE3_THREADS];
+    for (int i = 0; i < STAGE3_THREADS; i++) {
+        stage3_params[i].in_q = queue3;
+        stage3_params[i].out_q = NULL;
+        stage3_params[i].stage_name = "Stage 3";
+        stage3_params[i].bind_core = STAGE1_THREADS + STAGE2_THREADS + i;
+        stage3_params[i].stage_thread_index = i;
+        if (pthread_create(&stage3_threads[i], NULL, stage3, &stage3_params[i]) != 0) {
+            perror("pthread_create stage3");
+            exit(EXIT_FAILURE);
+        }
+    }
+    
+    for (int t = 0; t < NUM_TASKS; t++) {
+        write_queue(queue1, t);
+    }
+    
+    for (int i = 0; i < STAGE1_THREADS; i++) {
+        write_queue(queue1, TERMINATION_TASK);
     }
 
-    thread_config_t thread_configs[MAX_THREADS];
-    // Configure threads based on group
-    if (group == 1) {
-        thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
-        thread_configs[1] = (thread_config_t){ 1, { FUNC2 }, 1 };
-        thread_configs[2] = (thread_config_t){ 2, { FUNC3 }, 1 };
-
-
-    } else if (group == 2) {
-        thread_configs[0] = (thread_config_t){ 0, { FUNC1, FUNC2 }, 2 };
-
-    } else if (group == 3) {
-        thread_configs[0] = (thread_config_t){ 0, { FUNC1 }, 1 };
-
-    } else if (group == 4) {
-        thread_configs[0] = (thread_config_t){ 0, { FUNC1, FUNC2, FUNC3 }, 3 };
-
+    for (int i = 0; i < STAGE1_THREADS; i++) {
+        pthread_join(stage1_threads[i], NULL);
     }
-
-    clock_t start = clock();
-    for (int i = 0; i < MAX_THREADS; i++) {
-        pthread_create(&threads[i], NULL, thread_function, (void *)&thread_configs[i]);
+    for (int i = 0; i < STAGE2_THREADS; i++) {
+        pthread_join(stage2_threads[i], NULL);
     }
-
-    for (int i = 0; i < MAX_THREADS; i++) {
-        pthread_join(threads[i], NULL);
+    for (int i = 0; i < STAGE3_THREADS; i++) {
+        pthread_join(stage3_threads[i], NULL);
     }
-
-    clock_t end = clock();
-    double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("Time spent: %f seconds\n", time_spent);
-
-    free_queue(&queue1);
-    free_queue(&queue2);
-    free_queue(&queue3);
-    free_queue(&queue4);
-
-
-    printf("\nNumber of threads: %d\n", MAX_THREADS);
-    printf("Array size: %d\n", Arr_size);
-    printf("Queue 2 size: %d\n", queue2.size);
-    printf("Queue 3 size: %d\n", queue3.size);
-    printf("Queue 4 size: %d\n", queue4.size);
-    printf("group: %d\n", group);
-         for (int i = 0; i < MAX_THREADS; i++) {
-             printf("Thread %d assigned stages: ", i);
-             for (int j = 0; j < thread_configs[i].stage_count; j++) {
-                 printf("%d ", thread_configs[i].stages[j]);
-             }
-             printf("\n");
-         }
-
+    
+    printf("Pipeline processing complete.\n");
     return 0;
 }
