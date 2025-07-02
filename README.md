@@ -1,2 +1,2 @@
 # System and Parallel Applications Parameters 
-In this work, we explored application-level parameters tuning of parallel applications, our example of app is pipeline
+In this work, we explore application-level parameter tuning for parallel, pipeline-based applications, using experiments conducted on the Odroid-XU4 and Google Pixel 6a.
